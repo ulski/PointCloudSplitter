@@ -1,0 +1,17 @@
+pointcloudsplitter
+------------------
+boxsize x y z (box sidelenght)
+1,
+read pts file using new filestream
+for each line call linestore
+
+
+function linestore that receives full text line
+split using splitchar (space)
+using config rule to determine x y z colum number
+cubexyy sizes all 5000
+
+if xyz = 1007000,2000000,1000 (does points have decimals?)
+cubex= x/xsize=1007000/5000=201,4
+if we say lowest cube no is 1,1,1
+cube 1,1,1 will go from 0-5000 xyz
