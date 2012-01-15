@@ -1,6 +1,19 @@
-pointcloudsplitter
+PointCloudSplitter
 ------------------
-boxsize x y z (box sidelenght)
+Settings:
+boxsizex
+boxsizey
+boxsizez
+
+Codes for line syntax:
+x: scan x coordinate
+y: scan y coordinate
+z: scan z coordinate
+i: intensity
+r: red
+g: green
+b: blue
+
 1,
 read pts file using new filestream
 for each line call linestore
