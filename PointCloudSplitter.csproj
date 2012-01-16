@@ -33,9 +33,14 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>PointCloudSplitter.Program</StartupObject>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.configuration" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -43,9 +48,28 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CommandLineParsing\Command.cs" />
+    <Compile Include="CommandLineParsing\CommandLineDictionary.cs" />
+    <Compile Include="CommandLineParsing\CommandLineParser.cs" />
+    <Compile Include="CommandLineParsing\DirectoryInfoConverter.cs" />
+    <Compile Include="CommandLineParsing\FileInfoConverter.cs" />
+    <Compile Include="CommandLineParsing\NamespaceDoc.cs" />
+    <Compile Include="CreateDirectory.cs" />
+    <Compile Include="Default.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="CommandLineParsing\RequiredAttribute.cs" />
+    <Compile Include="setConfigFile.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Example config files\Standard.config" />
+    <None Include="Artwork\Logo1.pdn" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Artwork\Logo1.png" />
+    <Content Include="notes.txt" />
+  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
