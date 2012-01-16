@@ -6,6 +6,7 @@ boxsizey
 boxsizez
 
 Codes for line syntax:
+p: point number
 x: scan x coordinate
 y: scan y coordinate
 z: scan z coordinate
@@ -23,8 +24,41 @@ function linestore that receives full text line
 split using splitchar (space)
 using config rule to determine x y z colum number
 cubexyy sizes all 5000
-
-if xyz = 1007000,2000000,1000 (does points have decimals?)
-cubex= x/xsize=1007000/5000=201,4
 if we say lowest cube no is 1,1,1
 cube 1,1,1 will go from 0-5000 xyz
+
+if xyz = 5500,2000000,1000
+cubex= x/xsize=5500/5000=1.1 but this should be 2
+if xyz = 4700,2000000,1000
+cubex= x/xsize=4700/5000=0.94 but this should be 1
+we use math.ceiling to get the cube numbers we want
+we use ceiling because we count first cube as number 1 instead of 0
+                            
+The example displays the following output to the console:
+        Value          Ceiling          Floor
+      
+         7.03                8              7
+         7.64                8              7
+         0.12                1              0
+        -0.12                0             -1
+         -7.1               -7             -8
+         -7.6               -7             -8
+according to this table we might end up with cube 0
+for values as -0.12
+we need to test how this works with negative point values
+it seems as for cube size 5000mm cube 0 will be from 0
+to minus 5000
+
+
+Output cube filename syntax example:
+ZZZ [10 13 2] 2012-09-28.pts
+FacilityCode<space>[cubex<space>cubey<space>cubez]<space>YYYY-MM-DD.pts
+
+
+Input arguments:
+=========================================
+fullpath to config file
+scan date (date to be put on cube files)
+facilitycode
+sourcefolder D:\ScanData
+destinationfolder D:\ScanDataOutPut
