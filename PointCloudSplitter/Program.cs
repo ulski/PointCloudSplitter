@@ -129,6 +129,8 @@ namespace PointCloudSplitter
             // Note:
             // try to find out how to use validators on config file value
             // a la LoadedAppSettings["key"].ElementInformation.Validator.Validate;
+
+            #region readclippingsettings
             bool xlowerbool = false;
             int xlowerclip = 0;
             if (LoadedAppSettings["xlowerclip"] != null)
@@ -170,33 +172,14 @@ namespace PointCloudSplitter
             {
                 zupperbool = int.TryParse(LoadedAppSettings["zupperclip"].Value, out zupperclip);
             }
-            bool clipsanitycheck = true;
-            if (xlowerbool == true || xupperbool == true)
-            {
-                if (xlowerclip >= xupperclip)
-                {
-                    clipsanitycheck = false;
-                }
-            }
-            if (ylowerbool == true || yupperbool == true)
-            {
-                if (ylowerclip >= yupperclip)
-                {
-                    clipsanitycheck = false;
-                }
-            }
-            if (zlowerbool == true || zupperbool == true)
-            {
-                if (zlowerclip >= zupperclip)
-                {
-                    clipsanitycheck = false;
-                }
-            }
-            if (clipsanitycheck == false)
+            bool ClipSanityCheckResult = ClipSanityCheck(xlowerbool, xlowerclip, xupperbool, xupperclip, ylowerbool, ylowerclip, yupperbool, yupperclip, zlowerbool, zlowerclip, zupperbool, zupperclip);
+            if (ClipSanityCheckResult == false)
             {
                 Console.WriteLine("Error, invalid clipping value");
                 return;
             }
+            #endregion
+            #region readcubelength
             /* in order to parse number with dot as decimal point
              * on machines where default language uses comma
              * as decimal point
@@ -207,24 +190,25 @@ namespace PointCloudSplitter
             culture = CultureInfo.CreateSpecificCulture("en-US");
             style = NumberStyles.AllowDecimalPoint;
 
-            decimal CubeLenghtX;
-            decimal.TryParse(LoadedAppSettings["cubelenghtx"].Value, style, culture, out CubeLenghtX);
-            decimal CubeLenghtY;
-            decimal.TryParse(LoadedAppSettings["cubelenghty"].Value, style, culture, out CubeLenghtY);
-            decimal CubeLenghtZ;
-            decimal.TryParse(LoadedAppSettings["cubelenghtz"].Value, style, culture, out CubeLenghtZ);
-            //tryparse set int to 0 for invalid strings
-            //check for 0 cube lenght and negative lenght
-            if (CubeLenghtX <= 0 ||
-                CubeLenghtY <= 0 ||
-                CubeLenghtZ <= 0
+            decimal CubeLengthX;
+            decimal.TryParse(LoadedAppSettings["cubelengthx"].Value, style, culture, out CubeLengthX);
+            decimal CubeLengthY;
+            decimal.TryParse(LoadedAppSettings["cubelengthy"].Value, style, culture, out CubeLengthY);
+            decimal CubeLengthZ;
+            decimal.TryParse(LoadedAppSettings["cubelengthz"].Value, style, culture, out CubeLengthZ);
+            //tryparse returns false and int=0 for invalid strings
+            //check for 0 cube length and negative length
+            if (CubeLengthX <= 0 ||
+                CubeLengthY <= 0 ||
+                CubeLengthZ <= 0
                 )
             {
                 // one or more strings are not a number.
-                Console.WriteLine("Error in cube lenght configuration");
+                Console.WriteLine("Error in cube length configuration");
                 return;
             }
-
+            #endregion
+            #region readptssyntax
             List<string> ptssyntax = null;
             if (LoadedAppSettings["ptssyntax"] != null)
             {
@@ -255,7 +239,7 @@ namespace PointCloudSplitter
             int rcolumn = ptssyntax.IndexOf("r");
             int gcolumn = ptssyntax.IndexOf("g");
             int bcolumn = ptssyntax.IndexOf("b");
-            //*****************
+            #endregion
             List<string> cubefilenamesyntax = null;
             if (LoadedAppSettings["cubefilenamesyntax"] != null)
             {
@@ -288,16 +272,9 @@ namespace PointCloudSplitter
             #endregion
 
             
-            int CubeNoX;
-            int CubeNoY;
-            int CubeNoZ;
-            decimal CoordX;
-            decimal CoordY;
-            decimal CoordZ;
-            bool resx;
-            bool resy;
-            bool resz;
-            // search all subfolders
+            
+            #region findptsfiles
+            // search all subfolders, perhaps this should be a setting
             SearchOption mysearchOption = SearchOption.AllDirectories;
             
             List<string> mysearchPatterns = new List<string>();
@@ -310,6 +287,21 @@ namespace PointCloudSplitter
                 Console.WriteLine("no pts files found");
                 return;
             }
+            #endregion
+
+            int CubeNoX;
+            int CubeNoY;
+            int CubeNoZ;
+            decimal CoordX;
+            decimal CoordY;
+            decimal CoordZ;
+            bool resx;
+            bool resy;
+            bool resz;
+            /* dictionary holding counts per cube.
+             * each cube needs a point count in the header*/
+            Dictionary<string, ulong> CubeDictionary = new Dictionary<string, ulong>();
+            
             foreach (string FileName in ptsfiles)
             {
                 if (File.Exists(FileName))
@@ -318,7 +310,7 @@ namespace PointCloudSplitter
                     FileStream Input = new FileStream(FileName, FileMode.Open, FileAccess.Read);
                     StreamReader SR = new StreamReader(Input);
                     string[] Current;
-                    int Counter = 0;
+                    int TotalPointCounter = 0;
                     
                     string Str = SR.ReadLine();
                     while (Str != null)
@@ -326,37 +318,85 @@ namespace PointCloudSplitter
                         Current = Str.Split(SeparatorCharArray, StringSplitOptions.RemoveEmptyEntries);
                         if (Current.Length==1)
                         {
-                            Console.WriteLine("Number of scan points announced in header:" + Current[0]);    
+                            Console.WriteLine("Number of scan points announced in file:" + Current[0]);    
                         }
                         if (Current.Length > 1)
                         {
-                            Console.WriteLine("Col0:" + Current[0] + " Col1:" + Current[1] + " Col2:" + Current[2]);
+                            //Console.WriteLine("Col0:" + Current[0] + " Col1:" + Current[1] + " Col2:" + Current[2]);
                             
                             resx = decimal.TryParse(Current[xcolumn], style, culture, out CoordX);
                             resy = decimal.TryParse(Current[ycolumn], style, culture, out CoordY);
                             resz = decimal.TryParse(Current[zcolumn], style, culture, out CoordZ);
-                            if (resx==true && resx==true && resx==true)
+                            //only increase the counter by one if we got a vadid point
+                            if (resx==true && resy==true && resz==true)
                             {
-                                CubeNoX = Convert.ToInt32(Math.Ceiling(CoordX / CubeLenghtX));
-                                CubeNoY = Convert.ToInt32(Math.Ceiling(CoordY / CubeLenghtY));
-                                CubeNoZ = Convert.ToInt32(Math.Ceiling(CoordZ / CubeLenghtZ));
-                                Console.WriteLine("Debug this point belongs in cube : [" + CubeNoX + " " + CubeNoY + " " + CubeNoZ + "]");
-                                Counter++;
+                                CubeNoX = Convert.ToInt32(Math.Ceiling(CoordX / CubeLengthX));
+                                CubeNoY = Convert.ToInt32(Math.Ceiling(CoordY / CubeLengthY));
+                                CubeNoZ = Convert.ToInt32(Math.Ceiling(CoordZ / CubeLengthZ));
+                                //Console.WriteLine("Debug this point belongs in cube : [" + CubeNoX + " " + CubeNoY + " " + CubeNoZ + "]");
+                                string MyDictionaryKey=(CubeNoX + " " + CubeNoY + " " + CubeNoZ);
+                                string MyCubeFullPath = DestinationFolder +@"\" +MyDictionaryKey+".ptstemp";
+                                if (!CubeDictionary.ContainsKey(MyDictionaryKey))
+                                {
+                                    CubeDictionary.Add(MyDictionaryKey, 1);
+                                    try
+                                    {
+                                        
+                                        //we delete old cubes first (append false)
+                                        StreamWriter outfile = new StreamWriter(MyCubeFullPath,false);
+                                        outfile.Write(Current);
+                                        
+                                        // Close the stream:
+                                        outfile.Close();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine("Error: " + ex.Message);
+                                        return;
+                                    }
+                                    
+                                }
+                                else
+                                {
+                                    CubeDictionary[MyDictionaryKey]++;
+                                    try
+                                    {
+                                        StreamWriter outfile = new StreamWriter(MyCubeFullPath, true);
+                                        outfile.Write(Current);
+
+                                        // Close the stream:
+                                        outfile.Close();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine("Error: " + ex.Message);
+                                        return;
+                                    }
+                                    
+                                }
+                                
+                                TotalPointCounter++;
                             }
-                            // cubelenghtx;
+                            // cubelengthx;
 
                         }
                         /*
-                        if (Counter >= 100000)
+                        if (TotalPointCounter >= 100000)
                         {
                             Console.WriteLine("debug safety stop  - stopping after 100000 points");
                             return;
                         }
                          */
+                        
     
                         Str = SR.ReadLine();
                     }
-                    Console.WriteLine("Number of points in " + FileName + " :" + Counter);
+                    foreach (KeyValuePair<string, ulong> kvp in CubeDictionary)
+                    {
+                        Console.WriteLine("Cube: [" + kvp.Key + "] Points:" + kvp.Value);
+                    }
+                    Console.WriteLine("Number of cubes: " + CubeDictionary.Count);
+                    Console.WriteLine("Number of points in " + FileName + " : " + TotalPointCounter);
                 }
             }
             
@@ -366,6 +406,38 @@ namespace PointCloudSplitter
             //System.Threading.Thread.Sleep(2500);
             Console.WriteLine("Press any key to continue...");
             Console.ReadKey(true);
+        }
+
+        private static bool ClipSanityCheck(bool xlowerbool, int xlowerclip, bool xupperbool, int xupperclip, bool ylowerbool, int ylowerclip, bool yupperbool, int yupperclip, bool zlowerbool, int zlowerclip, bool zupperbool, int zupperclip)
+        {
+            bool check = true;
+            /*if one of the values are false and the other one
+             * true we should accept it because sometimes
+             * a user might want a upper limit only*/
+
+            if (xlowerbool == true && xupperbool == true)
+            {
+                if (xlowerclip >= xupperclip)
+                {
+                    check = false;
+                }
+            }
+
+            if (ylowerbool == true && yupperbool == true)
+            {
+                if (ylowerclip >= yupperclip)
+                {
+                    check = false;
+                }
+            }
+            if (zlowerbool == true && zupperbool == true)
+            {
+                if (zlowerclip >= zupperclip)
+                {
+                    check = false;
+                }
+            }
+            return check;
         }
     }
 }
