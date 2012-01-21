@@ -67,3 +67,5 @@ destinationfolder D:\ScanDataOutPut
 Ideas
 ======
 when ever a point is read. check if a string,ulong dictionary have the cube registred - if not add it - use ulong to count number of points in each cube. this is needed because the pts file format dictates that the first line in a pts file contain number of points. 
+
+perhaps scan points per second would be a good way to report the performance of the code
