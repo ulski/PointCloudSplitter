@@ -37,6 +37,8 @@ namespace PointCloudSplitter
     class Program
     {
         public static int DictionaryBufferSize = 4000000;
+        //30spaces
+        public static string EmptyHeaderStr = "                              ";
         /*
          * testing pts file 3,66 GB (3 937 108 560 bytes)
          * Time elapsed: 00:37:20.2635846 buffer size 1000
@@ -451,17 +453,16 @@ namespace PointCloudSplitter
                         }
                         #endregion
                         #region debugpointlimitor
-                        /*
-                        
-                        if (TotalPointCounter >= 10000)
+                        int MyDebugStop = 17000000;
+                        if (TotalPointCounter >= MyDebugStop)
                         {
-                            Console.WriteLine("debug safety stop  - stopping after 10000 points");
+                            Console.WriteLine("debug safety stop  - stopping after " + MyDebugStop + " points");
                             Console.WriteLine("Time elapsed: {0}", stopwatch.Elapsed);
                             Console.WriteLine("Press any key to continue...");
                             Console.ReadKey(true);
                             return;
                         }
-                        */
+                        
                         /* Time elapsed: 00:01:13.9126781 (1min14s) version1
                              * with stream open and close for each point
                              * Time elapsed: 00:00:00.3980194 (0min0.4s) version2
@@ -547,13 +548,17 @@ namespace PointCloudSplitter
                 try
                 {
                     MyOutputStreamWriter = new StreamWriter(MyCubeFullPath, true);
-                    //StringBuilder sb = new StringBuilder();
-                    foreach (string item in kvp.Value)
+                    //EmptyHeaderStr
+                    if (MyOutputStreamWriter.BaseStream.Length == 0)
                     {
-                        //sb.AppendLine(item);
+                        MyOutputStreamWriter.WriteLine(EmptyHeaderStr);
+                    }
+                        foreach (string item in kvp.Value)
+                    {
+                    
                         MyOutputStreamWriter.WriteLine(item);
                     }
-                    //MyOutputStreamWriter.Write(sb.ToString());
+                    
                     MyOutputStreamWriter.Flush();
                     
                 }
