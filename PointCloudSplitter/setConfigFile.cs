@@ -19,7 +19,7 @@ namespace PointCloudSplitter
                 ExeConfigurationFileMap fileMap = new ExeConfigurationFileMap();
                 fileMap.ExeConfigFilename = configfile;
                 Configuration config = ConfigurationManager.OpenMappedExeConfiguration(fileMap, ConfigurationUserLevel.None);
-                Console.WriteLine("Config loaded. Config filepath: " + config.FilePath);
+                Console.WriteLine("Configuration file loaded: " + config.FilePath);
                 appSettings = config.AppSettings;
                 string sectionName = "appSettings";
                 // Refreshes the named section so the next time that it is retrieved it will be re-read from disk.
