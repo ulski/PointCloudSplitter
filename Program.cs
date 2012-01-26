@@ -9,11 +9,11 @@ using System.ComponentModel;
 using System.IO;
 using System.Configuration;
 using System.Globalization;
+using System.Threading;
 namespace PointCloudSplitter
 {
     class CommandLineArguments
     {
-
         [Description("Print this help")]
         public bool? Help { get; set; }
 
@@ -363,6 +363,10 @@ namespace PointCloudSplitter
             int TotalPointCounter = 0;
             string MyCubeFullPath = string.Empty;
             string MyDictionaryKey = string.Empty;
+            
+            
+            
+            
             foreach (string FileName in ptsfiles)
             {
                 #region processptsfile
@@ -384,13 +388,11 @@ namespace PointCloudSplitter
                         Console.WriteLine("Error: " + ex.Message);
                         return;
                     }
-
+                    Console.WriteLine("Reading points....");
+                    
                     while (Str != null)
                     {
-                        if (MyInputStreamReader.BaseStream.Position % 10000000 == 0)
-                        {
-                            Console.Write(".");
-                        }
+                        
                         //flush buffer when it gets full
                         if (PointsInMemory >= DictionaryBufferSize)
                         {
@@ -404,7 +406,7 @@ namespace PointCloudSplitter
                         Current = Str.Split(SeparatorCharArray, StringSplitOptions.RemoveEmptyEntries);
                         if (Current.Length == 1)
                         {
-                            Console.WriteLine("Number of scan points announced in file:" + Current[0]);
+                            Console.WriteLine("Number of points announced in file header:" + Current[0]);
                         }
                         #region processpoint
                         if (Current.Length > 1)
@@ -480,6 +482,7 @@ namespace PointCloudSplitter
                                 TotalFilePointCounter++;
                                 TotalPointCounter++;
                              }
+
                         }
                         #endregion
                         #region debugpointlimitor
@@ -522,12 +525,18 @@ namespace PointCloudSplitter
                         MyInputFileStream.Close();
                     }
 
-
+                    
+                    
+                    if (ClipSanityCheckResult == true)
+                    {
+                        Console.WriteLine("You have defined clipping rules");
+                        Console.WriteLine("The number of points reported next is after clipping");
+                    }
                     Console.WriteLine("Number of points in " + FileName + " : " + TotalFilePointCounter);
-
                 }
                 #endregion
             }
+            
 
             //final buffer flush
             if (PointsInMemory > 0)
@@ -540,26 +549,28 @@ namespace PointCloudSplitter
                 }
             }
             
+            
+            string MyFinalFileName = string.Empty;
+            string FinalFileFullPath = string.Empty;
+            string TempFileFullPath = string.Empty;
             if (CubeDictionary.Count > 0)
             {
                 foreach (KeyValuePair<string, ulong> kvp in CubeDictionary)
                 {
-                    Console.WriteLine("Cube: [" + kvp.Key + "] Points:" + kvp.Value);
-                }
-                Console.WriteLine("Number of cubes: " + CubeDictionary.Count);
-            }
-            string FinalFileName = string.Empty;
-            string TempFileName = string.Empty;
-            if (CubeDictionary.Count > 0)
-            {
-                foreach (KeyValuePair<string, ulong> kvp in CubeDictionary)
-                {
-                    TempFileName = DestinationFolder + @"\" + kvp.Key + ".ptstemp";
-                    AddHeader(TempFileName, kvp.Value.ToString());
-                    FinalFileName = DestinationFolder + @"\" + FinalCubeFileName(FacilityCode, ScanDate, cubefilenamesyntax, kvp.Key);
+                    TempFileFullPath = DestinationFolder + @"\" + kvp.Key + ".ptstemp";
+                    AddHeader(TempFileFullPath, kvp.Value.ToString());
+                    MyFinalFileName=FinalCubeFileName(FacilityCode, ScanDate, cubefilenamesyntax, kvp.Key);
+                    FinalFileFullPath = DestinationFolder + @"\" + MyFinalFileName;
                     try
                     {
-                        File.Move(TempFileName, FinalFileName);
+                        if (File.Exists(FinalFileFullPath))
+                        {
+                            //Console.WriteLine("Deleting old cube: "  + FinalFileName);
+                            File.Delete(FinalFileFullPath);
+                        }
+                        
+                        File.Move(TempFileFullPath, FinalFileFullPath);
+                        Console.WriteLine("Cube complete:" + MyFinalFileName);
                     }
                     catch (Exception ex)
                     {
@@ -570,10 +581,22 @@ namespace PointCloudSplitter
                     }
                 }
             }
+            if (CubeDictionary.Count > 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine("======================================");
+                Console.WriteLine("========  S U M M A R Y  =============");
+                Console.WriteLine("======================================");
+                foreach (KeyValuePair<string, ulong> kvp in CubeDictionary)
+                {
+                    Console.WriteLine("Cube number: [" + kvp.Key + "]  Points in cube: " + kvp.Value);
+                }
+                Console.WriteLine("Number of cubes in total: " + CubeDictionary.Count);
+            }
             
-            stopwatch.Stop();
             Console.WriteLine("Number of points in total: " + TotalPointCounter);
             Console.WriteLine(System.Windows.Forms.Application.ProductName + " completed");
+            stopwatch.Stop();
             Console.WriteLine("Time elapsed: {0}", stopwatch.Elapsed);
             Console.WriteLine("Press any key to continue...");
             Console.ReadKey(true);
@@ -589,31 +612,31 @@ namespace PointCloudSplitter
                 switch (cubefilenamesyntax[i])
                 {
                     case "FacilityCode":
-                        cubefilenamesyntax[i] = FacilityCode;
+                        SB.Append(FacilityCode);
                         break;
                     case "cubex":
-                        cubefilenamesyntax[i] = CubeNoList[0];
+                        SB.Append(CubeNoList[0]);
                         break;
                     case "cubey":
-                        cubefilenamesyntax[i] = CubeNoList[1];
+                        SB.Append(CubeNoList[1]);
                         break;
                     case "cubez":
-                        cubefilenamesyntax[i] = CubeNoList[2];
+                        SB.Append(CubeNoList[2]);
                         break;
                     case "YYYY":
-                        cubefilenamesyntax[i] = ScanDate.Year.ToString();
+                        SB.Append(ScanDate.Year.ToString());
                         break;
                     case "MM":
-                        cubefilenamesyntax[i] = AddLeadingZero(ScanDate.Month.ToString());
+                        SB.Append(AddLeadingZero(ScanDate.Month.ToString()));
                         break;
                     case "DD":
-                        cubefilenamesyntax[i] = AddLeadingZero(ScanDate.Day.ToString());
+                        SB.Append(AddLeadingZero(ScanDate.Day.ToString()));
                         break;
-                    // default:
-                    //   break;
+                    default:
+                        SB.Append(cubefilenamesyntax[i]);
+                        break;
                 }
-                SB.Append(cubefilenamesyntax[i]);
-            }
+               }
             return SB.ToString();
         }
         private static string AddLeadingZero(string MyStr) 
@@ -699,8 +722,9 @@ namespace PointCloudSplitter
             foreach (KeyValuePair<string, List<string>> kvp in CubeBufferDictionary)
             {
                 StreamWriter MyOutputStreamWriter = null;
-                string MyCubeFullPath = DestinationFolder + @"\" + kvp.Key + ".ptstemp";
-                Console.WriteLine("Adding to temporary cube file: " + MyCubeFullPath);
+                string MyCubeTempFile=kvp.Key + ".ptstemp";
+                string MyCubeFullPath = DestinationFolder + @"\" + MyCubeTempFile;
+                Console.WriteLine("Writing to temp file: " + MyCubeTempFile);
                 try
                 {
                     MyOutputStreamWriter = new StreamWriter(MyCubeFullPath, true);
@@ -792,3 +816,4 @@ namespace PointCloudSplitter
         }
     }
 }
+
