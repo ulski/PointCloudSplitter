@@ -69,3 +69,55 @@ Ideas
 when ever a point is read. check if a string,ulong dictionary have the cube registred - if not add it - use ulong to count number of points in each cube. this is needed because the pts file format dictates that the first line in a pts file contain number of points. 
 
 perhaps scan points per second would be a good way to report the performance of the code
+
+
+Test results:
+
+testing pts file 3,66 GB (3 937 108 560 bytes)
+Time elapsed: 00:37:20.2635846 buffer size 1000
+output only 2.37gb? in first run
+
+second run with buffer size 2000000
+also changed disk write from string to stringbuilder
+and also added a stream flush command
+Time elapsed: 00:08:35.2906564
+3.42gb now written to disk
+
+third run
+changed stingbuilder obj to one stream writeline per point
+3.66gb written to disk
+uses less memory and approx. same speed
+Time elapsed: 00:08:39.4959986
+
+4th test
+buffer 4000000, peak working set 1005076K
+Time elapsed: 00:08:20.8302115
+3,66 GB (3 937 108 540 bytes) written (20bytes diff. could be due to missing header
+from orgfile (temp pts files are headerless) 
+
+5th test
+buffer 4000000, peak working set 987352K
+Time elapsed: 00:07:56.9039535
+written :3,66 GB (3 937 108 540 bytes)
+
+6th test
+input one pts file 3,66 GB (3 937 108 560 bytes)
+buffer 4000000
+UnitScale set to 0.001
+Number of cubes in total: 1025
+Number of points in total: 78996476
+3,66 GB (3 937 141 340 bytes) size diff due to each of the 1025cube get
+a extra 30 char line via the header
+Time elapsed: 00:15:40.0310535
+seems as if the unitscale function make the run time double
+
+7th test
+input one pts file 3,66 GB (3 937 108 560 bytes)
+buffer 4000000
+unitscale off
+Number of cubes in total: 1025
+Number of points in total: 78996476
+PointCloudSplitter completed
+Time elapsed: 00:09:44.9752195
+3,66 GB (3 937 141 340 bytes) files also a bit larger with unitscale off?
+

@@ -36,37 +36,29 @@ namespace PointCloudSplitter
 
     class Program
     {
-        
-        //30spaces
-        public static string EmptyHeaderStr = "                              ";
-        /*
-         * testing pts file 3,66 GB (3 937 108 560 bytes)
-         * Time elapsed: 00:37:20.2635846 buffer size 1000
-         * output only 2.37gb? in first run
-         * 
-         * second run with buffer size 2000000
-         * also changed disk write from string to stringbuilder
-         * and also added a stream flush command
-         * Time elapsed: 00:08:35.2906564
-         * 3.42gb now written to disk
-         * 
-         * third run
-         * changed stingbuilder obj to one stream writeline per point
-         * 3.66gb written to disk
-         * uses less memory and approx. same speed
-         * Time elapsed: 00:08:39.4959986
-         * 
-         * 4th test
-         * buffer 4000000, peak working set 1005076K
-         * Time elapsed: 00:08:20.8302115
-         * 3,66 GB (3 937 108 540 bytes) written (20bytes diff. could be due to missing header
-         * from orgfile (temp pts files are headerless) 
-         * 
-         * 5th test
-         * buffer 4000000, peak working set 987352K
-         * Time elapsed: 00:07:56.9039535
-         * written :3,66 GB (3 937 108 540 bytes)
+        /* EmptyHeaderStr is a string with 30spaces.
+         * do not change this
+         * See explanation in the AddHeader method
          */
+        public static string EmptyHeaderStr = "                              ";
+        public static decimal UnitScale = 1;
+        public static string OutputSeparator = " ";
+        public static int pcolumn;
+        public static int xcolumn;
+        public static int ycolumn;
+        public static int zcolumn;
+        public static int icolumn;
+        public static int rcolumn;
+        public static int gcolumn;
+        public static int bcolumn;
+        /* in order to parse number with dot as decimal point
+         * on machines where default language uses comma
+         * as decimal point
+         * we use en-US because pts files normally uses dot not comma
+         */
+        public static CultureInfo culture = CultureInfo.CreateSpecificCulture("en-US");
+        public static NumberStyles style = NumberStyles.AllowDecimalPoint;
+
         public static List<string> GetFiles(string path, List<string> searchPatterns, SearchOption searchOption)
         {
             var result = searchPatterns.SelectMany(x => Directory.GetFiles(path, x, searchOption));
@@ -82,7 +74,7 @@ namespace PointCloudSplitter
             Console.WriteLine("{0} Version ({1})", System.Windows.Forms.Application.ProductName, System.Windows.Forms.Application.ProductVersion);
             Console.WriteLine("---------------------------------------------------------------------");
             Console.WriteLine();
-            #region readarguments
+            #region readarguments        
             CommandLineArguments a = new CommandLineArguments();
             CommandLineParser.ParseArguments(a, args);
             if (a.ConfigFile == null || a.Help.GetValueOrDefault(false))
@@ -135,20 +127,40 @@ namespace PointCloudSplitter
                 Console.WriteLine("Error in configuration");
                 return;
             }
-            #region buffersize
-            //support for fine tuning of buffer size
-            uint DictionaryBufferSize=0;
-            bool DictionaryBufferSizeBool=false;
-            
-            if (LoadedAppSettings["BufferSize"] != null)
+            //UnitsScale
+            #region UnitScale
+            /* sometimes we get pts file i milimeters
+             * but normally we need pts files in meters.
+             * UnitScale fixes this if set to 0.001
+             */
+            bool UnitScaleBool = false;
+            if (LoadedAppSettings["unitscale"] != null)
             {
-                DictionaryBufferSizeBool = uint.TryParse(LoadedAppSettings["BufferSize"].Value, out DictionaryBufferSize);
+                UnitScaleBool = decimal.TryParse(LoadedAppSettings["unitscale"].Value, style, culture, out UnitScale);
+                /* tryparse returns 0 on false
+                 * to make thing more logical default
+                 * scale is always set to 1 */
+                if (UnitScale == 0)
+                {
+                    UnitScale = 1;
+                }
+            }
+            
+            #endregion
+            #region buffersize            
+            //support for fine tuning of buffer size
+            uint DictionaryBufferSize = 0;
+            bool DictionaryBufferSizeBool = false;
+
+            if (LoadedAppSettings["bufferSize"] != null)
+            {
+                DictionaryBufferSizeBool = uint.TryParse(LoadedAppSettings["bufferSize"].Value, out DictionaryBufferSize);
             }
             if (DictionaryBufferSizeBool == false)
             {
                 DictionaryBufferSize = 4000000;
             }
-            else if (DictionaryBufferSize<=10)
+            else if (DictionaryBufferSize <= 10)
             {
                 Console.WriteLine("Error, minimum buffer size is 10");
                 return;
@@ -158,9 +170,9 @@ namespace PointCloudSplitter
              * but SeparatorChar can be set in the configfile
              */
             char[] SeparatorCharArray;
-            if (LoadedAppSettings["SeparatorChar"] != null)
+            if (LoadedAppSettings["separatorchar"] != null)
             {
-                SeparatorCharArray = LoadedAppSettings["SeparatorChar"].Value.ToCharArray();
+                SeparatorCharArray = LoadedAppSettings["separatorchar"].Value.ToCharArray();
             }
             else
             {
@@ -225,23 +237,22 @@ namespace PointCloudSplitter
             {
                 zupperbool = int.TryParse(LoadedAppSettings["zupperclip"].Value, out zupperclip);
             }
-            bool ClipSanityCheckResult = ClipSanityCheck(xlowerbool, xlowerclip, xupperbool, xupperclip, ylowerbool, ylowerclip, yupperbool, yupperclip, zlowerbool, zlowerclip, zupperbool, zupperclip);
-            if (ClipSanityCheckResult == false)
+            bool ClippingEnabled = false;
+            bool ClipSanityCheckResult = false;
+
+            if (xlowerbool == true || xupperbool == true || ylowerbool == true || yupperbool == true || zlowerbool == true || zupperbool == true)
             {
-                Console.WriteLine("Error, invalid clipping value");
-                return;
+                ClippingEnabled = true;
+                ClipSanityCheckResult = ClipSanityCheck(xlowerbool, xlowerclip, xupperbool, xupperclip, ylowerbool, ylowerclip, yupperbool, yupperclip, zlowerbool, zlowerclip, zupperbool, zupperclip);
+                if (ClipSanityCheckResult == false)
+                {
+                    Console.WriteLine("Error, invalid clipping value");
+                    return;
+                }
             }
             #endregion
             #region readcubelength
-            /* in order to parse number with dot as decimal point
-             * on machines where default language uses comma
-             * as decimal point
-             * we use en-US because pts files normally uses dot not comma
-             */
-            NumberStyles style;
-            CultureInfo culture;
-            culture = CultureInfo.CreateSpecificCulture("en-US");
-            style = NumberStyles.AllowDecimalPoint;
+            
 
             decimal CubeLengthX;
             decimal.TryParse(LoadedAppSettings["cubelengthx"].Value, style, culture, out CubeLengthX);
@@ -284,14 +295,14 @@ namespace PointCloudSplitter
                 ptssyntax.Add("g");
                 ptssyntax.Add("b");
             }
-            int pcolumn = ptssyntax.IndexOf("p");
-            int xcolumn = ptssyntax.IndexOf("x");
-            int ycolumn = ptssyntax.IndexOf("y");
-            int zcolumn = ptssyntax.IndexOf("z");
-            int icolumn = ptssyntax.IndexOf("i");
-            int rcolumn = ptssyntax.IndexOf("r");
-            int gcolumn = ptssyntax.IndexOf("g");
-            int bcolumn = ptssyntax.IndexOf("b");
+            pcolumn = ptssyntax.IndexOf("p");
+            xcolumn = ptssyntax.IndexOf("x");
+            ycolumn = ptssyntax.IndexOf("y");
+            zcolumn = ptssyntax.IndexOf("z");
+            icolumn = ptssyntax.IndexOf("i");
+            rcolumn = ptssyntax.IndexOf("r");
+            gcolumn = ptssyntax.IndexOf("g");
+            bcolumn = ptssyntax.IndexOf("b");
             #endregion
             List<string> cubefilenamesyntax = null;
             if (LoadedAppSettings["cubefilenamesyntax"] != null)
@@ -325,10 +336,7 @@ namespace PointCloudSplitter
                 cubefilenamesyntax.Add("DD");
                 cubefilenamesyntax.Add(".pts");
             }
-            
             #endregion
-
-
 
             #region findptsfiles
             // search all subfolders, perhaps this should be a setting
@@ -345,10 +353,9 @@ namespace PointCloudSplitter
                 return;
             }
             #endregion
-
-            int CubeNoX=0;
-            int CubeNoY=0;
-            int CubeNoZ=0;
+            int CubeNoX = 0;
+            int CubeNoY = 0;
+            int CubeNoZ = 0;
             decimal CoordX;
             decimal CoordY;
             decimal CoordZ;
@@ -358,15 +365,12 @@ namespace PointCloudSplitter
             /* dictionary holding counts per cube.
              * each cube needs a point count in the header*/
             Dictionary<string, ulong> CubeDictionary = new Dictionary<string, ulong>();
-            Dictionary<string, List<string>> CubeBufferDictionary = new Dictionary<string, List<string>>();
+            Dictionary<string, List<string[]>> CubeBufferDictionary = new Dictionary<string, List<string[]>>();
             int PointsInMemory = 0;
             int TotalPointCounter = 0;
             string MyCubeFullPath = string.Empty;
             string MyDictionaryKey = string.Empty;
-            
-            
-            
-            
+
             foreach (string FileName in ptsfiles)
             {
                 #region processptsfile
@@ -389,10 +393,9 @@ namespace PointCloudSplitter
                         return;
                     }
                     Console.WriteLine("Reading points....");
-                    
+
                     while (Str != null)
                     {
-                        
                         //flush buffer when it gets full
                         if (PointsInMemory >= DictionaryBufferSize)
                         {
@@ -416,9 +419,20 @@ namespace PointCloudSplitter
                             resx = decimal.TryParse(Current[xcolumn], style, culture, out CoordX);
                             resy = decimal.TryParse(Current[ycolumn], style, culture, out CoordY);
                             resz = decimal.TryParse(Current[zcolumn], style, culture, out CoordZ);
-                            ClippingControl(xlowerbool, xlowerclip, xupperbool, xupperclip, ylowerbool, ylowerclip, yupperbool, yupperclip, zlowerbool, zlowerclip, zupperbool, zupperclip, CoordX, CoordY, CoordZ, ref resx, ref resy, ref resz);
-                            //only increase the counter by one if we got a vadid point
+
+                            bool PointCheck = false;
                             if (resx == true && resy == true && resz == true)
+                            {
+                                if (ClippingEnabled == false)
+                                {
+                                    PointCheck = true;
+                                }
+                                else
+                                {
+                                    PointCheck = ClippingControl(xlowerbool, xlowerclip, xupperbool, xupperclip, ylowerbool, ylowerclip, yupperbool, yupperclip, zlowerbool, zlowerclip, zupperbool, zupperclip, CoordX, CoordY, CoordZ);
+                                }
+                            }
+                            if (PointCheck == true)
                             {
                                 CubeNoX = Convert.ToInt32(Math.Ceiling(CoordX / CubeLengthX));
                                 CubeNoY = Convert.ToInt32(Math.Ceiling(CoordY / CubeLengthY));
@@ -445,44 +459,38 @@ namespace PointCloudSplitter
                                     }
                                 }
 
-
                                 //update the cube dictionary
                                 if (newcube == true)
                                 {
                                     CubeDictionary.Add(MyDictionaryKey, 1);
-                                    
-
                                 }
                                 else
                                 {
                                     CubeDictionary[MyDictionaryKey]++;
-                                    
-
-                                    
                                     /*remember to flush buffer and write points to disk
-                                     * buffersize should go against total no. of points
-                                     * in CubeBufferDictionary and not number of points
-                                     * in each cube. this would force update some cubefiles
-                                     * early after few points but it gives a more true
-                                     * picture of the total memory used before flush*/
+                                    * buffersize should go against total no. of points
+                                    * in CubeBufferDictionary and not number of points
+                                    * in each cube. this would force update some cubefiles
+                                    * early after few points but it gives a more true
+                                    * picture of the total memory used before flush*/
                                 }
                                 /*we keep things simple by deleting everything in
                                  * the buffer dictionary, so we have to check separately
                                  * if the key exist in the buffer */
                                 if (!CubeBufferDictionary.ContainsKey(MyDictionaryKey))
                                 {
-                                    List<string> BufferPointList = new List<string>();
-                                    BufferPointList.Add(Str);
+                                    List<string[]> BufferPointList = new List<string[]>();
+                                    BufferPointList.Add(Current);
                                     CubeBufferDictionary.Add(MyDictionaryKey, BufferPointList);
                                 }
-                                else {
-                                    CubeBufferDictionary[MyDictionaryKey].Add(Str);
+                                else
+                                {
+                                    CubeBufferDictionary[MyDictionaryKey].Add(Current);
                                 }
                                 PointsInMemory++;
                                 TotalFilePointCounter++;
                                 TotalPointCounter++;
-                             }
-
+                            }
                         }
                         #endregion
                         #region debugpointlimitor
@@ -496,15 +504,9 @@ namespace PointCloudSplitter
                             Console.ReadKey(true);
                             return;
                         }
-                        */
-                        /* Time elapsed: 00:01:13.9126781 (1min14s) version1
-                             * with stream open and close for each point
-                             * Time elapsed: 00:00:00.3980194 (0min0.4s) version2
-                             * enabled buffer size set to 1000
-                             */
+                        */                        
                         #endregion
-                    
-
+                        
                         try
                         {
                             Str = MyInputStreamReader.ReadLine();
@@ -514,7 +516,6 @@ namespace PointCloudSplitter
                             Console.WriteLine("Error: " + ex.Message);
                             return;
                         }
-
                     }
                     if (MyInputStreamReader != null)
                     {
@@ -524,31 +525,29 @@ namespace PointCloudSplitter
                     {
                         MyInputFileStream.Close();
                     }
-
-                    
-                    
-                    if (ClipSanityCheckResult == true)
+                    if (ClippingEnabled == true)
                     {
-                        Console.WriteLine("You have defined clipping rules");
-                        Console.WriteLine("The number of points reported next is after clipping");
+                        Console.WriteLine("Points in " + FileName + " after clipping : " + TotalFilePointCounter);
                     }
-                    Console.WriteLine("Number of points in " + FileName + " : " + TotalFilePointCounter);
+                    else
+                    {
+                        Console.WriteLine("Points in " + FileName + " : " + TotalFilePointCounter);
+                    }
                 }
                 #endregion
             }
-            
 
             //final buffer flush
             if (PointsInMemory > 0)
             {
+                Console.WriteLine("Writing last data from buffer");
                 string MyFlushError = string.Empty;
-                if (FlushBufferToDisk(DestinationFolder, CubeBufferDictionary, ref PointsInMemory,  out MyFlushError) == false)
+                if (FlushBufferToDisk(DestinationFolder, CubeBufferDictionary, ref PointsInMemory, out MyFlushError) == false)
                 {
                     Console.WriteLine("Error," + MyFlushError);
                     return;
                 }
             }
-            
             
             string MyFinalFileName = string.Empty;
             string FinalFileFullPath = string.Empty;
@@ -559,7 +558,7 @@ namespace PointCloudSplitter
                 {
                     TempFileFullPath = DestinationFolder + @"\" + kvp.Key + ".ptstemp";
                     AddHeader(TempFileFullPath, kvp.Value.ToString());
-                    MyFinalFileName=FinalCubeFileName(FacilityCode, ScanDate, cubefilenamesyntax, kvp.Key);
+                    MyFinalFileName = FinalCubeFileName(FacilityCode, ScanDate, cubefilenamesyntax, kvp.Key);
                     FinalFileFullPath = DestinationFolder + @"\" + MyFinalFileName;
                     try
                     {
@@ -568,15 +567,12 @@ namespace PointCloudSplitter
                             //Console.WriteLine("Deleting old cube: "  + FinalFileName);
                             File.Delete(FinalFileFullPath);
                         }
-                        
                         File.Move(TempFileFullPath, FinalFileFullPath);
                         Console.WriteLine("Cube complete:" + MyFinalFileName);
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine("Error, " + ex.Message);
-                        Console.WriteLine("Press any key to continue...");
-                        Console.ReadKey(true);
                         return;
                     }
                 }
@@ -593,13 +589,10 @@ namespace PointCloudSplitter
                 }
                 Console.WriteLine("Number of cubes in total: " + CubeDictionary.Count);
             }
-            
             Console.WriteLine("Number of points in total: " + TotalPointCounter);
             Console.WriteLine(System.Windows.Forms.Application.ProductName + " completed");
             stopwatch.Stop();
             Console.WriteLine("Time elapsed: {0}", stopwatch.Elapsed);
-            Console.WriteLine("Press any key to continue...");
-            Console.ReadKey(true);
         }
 
         private static string FinalCubeFileName(string FacilityCode, DateTime ScanDate, List<string> cubefilenamesyntax, string cubeno)
@@ -636,93 +629,73 @@ namespace PointCloudSplitter
                         SB.Append(cubefilenamesyntax[i]);
                         break;
                 }
-               }
+            }
             return SB.ToString();
         }
-        private static string AddLeadingZero(string MyStr) 
+        private static string AddLeadingZero(string MyStr)
         {
-            if (MyStr.Length==1)
+            if (MyStr.Length == 1)
             {
                 MyStr = "0" + MyStr;
             }
             return MyStr;
         }
-        private static void ClippingControl(bool xlowerbool, int xlowerclip, bool xupperbool, int xupperclip, bool ylowerbool, int ylowerclip, bool yupperbool, int yupperclip, bool zlowerbool, int zlowerclip, bool zupperbool, int zupperclip, decimal CoordX, decimal CoordY, decimal CoordZ, ref bool resx, ref bool resy, ref bool resz)
+        private static bool ClippingControl(bool xlowerbool, int xlowerclip, bool xupperbool, int xupperclip, bool ylowerbool, int ylowerclip, bool yupperbool, int yupperclip, bool zlowerbool, int zlowerclip, bool zupperbool, int zupperclip, decimal CoordX, decimal CoordY, decimal CoordZ)
         {
-            if (resx == true)
+            if (xlowerbool == true)
             {
-                if (xlowerbool == true)
+                if (CoordX < xlowerclip)
                 {
-                    if (CoordX < xlowerclip)
-                    {
-                        resx = false;
-
-                    }
+                    return false;
                 }
             }
-            if (resx == true)
+            if (xupperbool == true)
             {
-                if (xupperbool == true)
+                if (CoordX > xupperclip)
                 {
-                    if (CoordX > xupperclip)
-                    {
-                        resx = false;
-                    }
+                    return false;
                 }
             }
-            if (resy == true)
+            if (ylowerbool == true)
             {
-                if (ylowerbool == true)
+                if (CoordY < ylowerclip)
                 {
-                    if (CoordY < ylowerclip)
-                    {
-                        resy = false;
-
-                    }
+                    return false;
                 }
             }
-            if (resy == true)
+            if (yupperbool == true)
             {
-                if (yupperbool == true)
+                if (CoordY > yupperclip)
                 {
-                    if (CoordY > yupperclip)
-                    {
-                        resy = false;
-                    }
+                    return false;
                 }
             }
-            if (resz == true)
+            if (zlowerbool == true)
             {
-                if (zlowerbool == true)
+                if (CoordZ < zlowerclip)
                 {
-                    if (CoordZ < zlowerclip)
-                    {
-                        resz = false;
-
-                    }
+                    return false;
                 }
             }
-            if (resz == true)
+            if (zupperbool == true)
             {
-                if (zupperbool == true)
+                if (CoordZ > zupperclip)
                 {
-                    if (CoordZ > zupperclip)
-                    {
-                        resz = false;
-                    }
+                    return false;
                 }
             }
+            return true;
         }
 
-        private static bool FlushBufferToDisk(string DestinationFolder, Dictionary<string, List<string>> CubeBufferDictionary, ref int PointsInMemory,out string MyResultStr)
+        private static bool FlushBufferToDisk(string DestinationFolder, Dictionary<string, List<string[]>> CubeBufferDictionary, ref int PointsInMemory, out string MyResultStr)
         {
             MyResultStr = string.Empty;
             bool MyResultBool = true;
             //add code here to flush buffer to disk  
-            foreach (KeyValuePair<string, List<string>> kvp in CubeBufferDictionary)
+            foreach (KeyValuePair<string, List<string[]>> kvp in CubeBufferDictionary)
             {
                 StreamWriter MyOutputStreamWriter = null;
-                string MyCubeTempFile=kvp.Key + ".ptstemp";
+                string MyCubeTempFile = kvp.Key + ".ptstemp";
                 string MyCubeFullPath = DestinationFolder + @"\" + MyCubeTempFile;
                 Console.WriteLine("Writing to temp file: " + MyCubeTempFile);
                 try
@@ -733,14 +706,29 @@ namespace PointCloudSplitter
                     {
                         MyOutputStreamWriter.WriteLine(EmptyHeaderStr);
                     }
-                        foreach (string item in kvp.Value)
+                    foreach (string[] item in kvp.Value)
                     {
-                    
-                        MyOutputStreamWriter.WriteLine(item);
+                        if (UnitScale != 1)
+                        {
+                            for (int i = 0; i < item.Length; i++)
+                            {
+                                if (i==xcolumn || i==ycolumn || i==zcolumn)
+                                {
+                                    /* do not need tryparse here because we
+                                     * checked the value once already
+                                     * 
+                                     * future imp: change string array to object 
+                                     * with decimal and strings or and array of decimals
+                                     * if it does not slow down the code to much
+                                     */
+                                     //item[i] = Convert.ToString(Decimal.Parse(item[i],style, culture)*UnitScale);
+                                    item[i] = Convert.ToString(Decimal.Parse(item[i], style, culture) * UnitScale, culture);                   
+                                }
+                            }
+                        }
+                        MyOutputStreamWriter.WriteLine(String.Join(OutputSeparator, item));
                     }
-                    
                     MyOutputStreamWriter.Flush();
-                    
                 }
                 catch (Exception ex)
                 {
@@ -755,12 +743,25 @@ namespace PointCloudSplitter
                         MyOutputStreamWriter.Close();
                     }
                 }
-
             }
             CubeBufferDictionary.Clear();
             PointsInMemory = 0;
             return MyResultBool;
         }
+        /* Comments regarding AddHeader
+         * 
+         * This way of adding the total point count in first line
+         * is a bit dodgy. The reason is we write a line with many spaces
+         * and after writing all the points go back and the replace
+         * some of the spaces with numbers. This means
+         * that the header will always have some spaces trailing the count number. 
+         * Fortunately most pts readers don't mind these extra spaces
+         * and this method is magnitudes faster than the alternative.
+         * The alternative would be to loop all point twice:
+         * either rewrite all points to disk in a new file or
+         * loop all count points first
+         * and then write points to disk in a second loop.
+         */
         private static void AddHeader(string FullPath, string HeaderText)
         {
             FileStream fStream = null;
@@ -776,8 +777,9 @@ namespace PointCloudSplitter
                 Console.WriteLine("Error while writing header");
                 Console.WriteLine(ex.Message);
             }
-            finally {
-                if (fStream !=null)
+            finally
+            {
+                if (fStream != null)
                 {
                     fStream.Close();
                 }
@@ -797,7 +799,6 @@ namespace PointCloudSplitter
                     check = false;
                 }
             }
-
             if (ylowerbool == true && yupperbool == true)
             {
                 if (ylowerclip >= yupperclip)
@@ -816,4 +817,3 @@ namespace PointCloudSplitter
         }
     }
 }
-
