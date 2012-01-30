@@ -64,13 +64,6 @@ sourcefolder D:\ScanData
 destinationfolder D:\ScanDataOutPut
 
 
-Ideas
-======
-when ever a point is read. check if a string,ulong dictionary have the cube registred - if not add it - use ulong to count number of points in each cube. this is needed because the pts file format dictates that the first line in a pts file contain number of points. 
-
-perhaps scan points per second would be a good way to report the performance of the code
-
-
 Test results:
 
 testing pts file 3,66 GB (3 937 108 560 bytes)
@@ -119,5 +112,34 @@ Number of cubes in total: 1025
 Number of points in total: 78996476
 PointCloudSplitter completed
 Time elapsed: 00:09:44.9752195
-3,66 GB (3 937 141 340 bytes) files also a bit larger with unitscale off?
+3,66 GB (3 937 141 340 bytes)
 
+8th test
+input one pts file 3,66 GB (3 937 108 560 bytes)
+buffer 4000000
+unitscale off
+Number of cubes in total: 1025
+Number of points in total: 78996476
+PointCloudSplitter completed
+Time elapsed: 00:08:48.4647701
+3,66 GB (3 937 141 340 bytes)
+
+9th test
+input one pts file 3,66 GB (3 937 108 560 bytes)
+buffer 4000000
+unitscale 0.001
+Number of cubes in total: 1025
+Number of points in total: 78996476
+PointCloudSplitter completed
+Time elapsed: 00:10:21.4197697
+3,66 GB (3 937 141 340 bytes)
+
+10th test
+input one pts file 3,66 GB (3 937 108 560 bytes)
+buffer 4000000
+unitscale off
+Number of cubes in total: 1025
+Number of points in total: 78996476
+PointCloudSplitter completed
+Time elapsed: 00:08:27.1358364
+3,66 GB (3 937 141 340 bytes)
