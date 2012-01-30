@@ -62,8 +62,11 @@
     <Compile Include="setConfigFile.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Example config files\Standard.config" />
+    <None Include="Example config files\Standard.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="Artwork\Logo1.pdn" />
+    <None Include="Example script\Start_PointCloudSplitter.cmd" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Artwork\Logo1.png" />
