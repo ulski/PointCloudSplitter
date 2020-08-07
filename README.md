@@ -13,7 +13,7 @@ All configuration is done via a XML file. A sample configuration file called **S
 * Place the exe file in a suitable folder 
 * Download the sample config file called **Standard.config** 
 * Place the Standard.config file in a suitable folder 
-* Edit Standard.config in a text editor such as notepad. Refer this page [The Configuration file](The-Configuration-file) for information about how to edit the configuration file
+* Edit Standard.config in a text editor such as notepad. Please read the configuration section  below to learn how to edit the configuration file
 
 # Starting PointCloudSplitter 
 
