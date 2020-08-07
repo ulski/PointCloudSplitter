@@ -72,7 +72,7 @@ DataOutput" /ScanDate="2012-01-15"
 ```
 
 ## Configuration 
-# Configuration file example 
+### Configuration file example 
 ```
 <?xml version="1.0" encoding="utf-8"?> 
 <configuration> 
