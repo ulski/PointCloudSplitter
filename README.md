@@ -50,8 +50,6 @@ Before you start the program, we strongly recommend that you manually check the 
 ## Built in help screen 
 When started with no command-line arguments or the argument **/help** , the following help text will be displayed: 
 ```
-{
-
 ---------------------------------------------------------------------------- 
 PointCloudSplitter 0.1.4430.40048, Copyright (C) 2012 Ulrik Dan Christensen 
 This program is comes with ABSOLUTELY NO WARRANTY. 
@@ -71,8 +69,6 @@ source pts file will be used
 Example - PointCloudSplitter.exe /ConfigFile="D:\PointCloudSplitter\Standard.con 
 fig" /FacilityCode="ZZZ" /SourceFolder="D:\ScanData" /DestinationFolder="D:\Scan 
 DataOutput" /ScanDate="2012-01-15" 
-
-}
 ```
 
 ## Installation 
