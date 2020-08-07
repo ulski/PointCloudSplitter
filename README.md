@@ -71,11 +71,74 @@ fig" /FacilityCode="ZZZ" /SourceFolder="D:\ScanData" /DestinationFolder="D:\Scan
 DataOutput" /ScanDate="2012-01-15" 
 ```
 
-## Installation 
-Information about how to install PointCloudSplitter can be found here: [Installation](Installation) 
-
 ## Configuration 
-Information about the configuration can be found here: [The Configuration file](The-Configuration-file) 
+# Configuration file example 
+```
+<?xml version="1.0" encoding="utf-8"?> 
+<configuration> 
+<appSettings> 
+<add key="cubelengthx" value="5000" /> 
+<add key="cubelengthy" value="5000" /> 
+<add key="cubelengthz" value="5000" /> 
+<add key="ptssyntax" value="x;y;z;i;r;g;b" /> 
+<add key="xlowerclip" value="" /> 
+<add key="xupperclip" value="" /> 
+<add key="ylowerclip" value="" /> 
+<add key="yupperclip" value="" /> 
+<add key="zlowerclip" value="" /> 
+<add key="zupperclip" value="" /> 
+{"<add key="cubefilenamesyntax" value="FacilityCode; [;cubex; ;cubey; ;cubez;](;cubex;-;cubey;-;cubez;) ;YYYY;-;MM;-;DD;.pts" />"} 
+<add key="unitscale" value="" /> 
+<add key="buffersize" value="" /> 
+<add key="separatorchar" value="" /> 
+</appSettings> 
+</configuration> 
+```
+**cubelengthx,cubelengthy,cubelengthz** 
+Defines the side lengths of the cubes. 
+
+**ptssyntax** 
+Normally you should leave this setting as it is. Only use this if you your column order differ from normal **xyz** order. (ptssyntax is where we define the column order for the points). 
+p = point number (not used in standard pts files and unsupported in current version 
+x = x coordinate 
+y = y coordinate 
+z = z coordinate 
+i = intensity 
+r = red 
+g = green 
+b = blue 
+
+**xlowerclip,xupperclip,ylowerclip,yupperclip,zlowerclip,zupperclip** (optional) 
+You can define clipping planes using these upper and lower x y z clipping values 
+This is used to filter unwanted points 
+
+**cubefilenamesyntax** 
+This is a semicolon separated string used to control the filenames of the final cube files 
+You may use custom text, but the following words are codes with a special meaning 
+
+FacilityCode: if you add this code to the cubefilenamesyntax, the facility code specified during program start is added to the filename 
+
+cubex: if you add this code to the cubefilenamesyntax, the cube x index number is added to the filename 
+
+cubey: if you add this code to the cubefilenamesyntax, the cube y index number is added to the filename 
+
+cubez: if you add this code to the cubefilenamesyntax, the cube z index number is added to the filename 
+
+YYYY: This code is replaced by the year specified in the scan date during program start 
+
+MM: This code is replaced by the month specified in the scan date during program start 
+
+DD: This code is replaced by the day specified in the scan date during program start 
+
+**unitscale** (optional) 
+You do not have to set this if input pts files and output cubes should have identical units (a scale of 1 will be default) 
+If you have input pts files in milimeters and you want the pts cubes to be in meters, you will need to use a unit scale of 0.001 
+
+**buffersize** (optional) 
+You do not need to use this setting. The default buffer is set to 4000000 points. On systems with fast IO and a lot of memory, you might get better performance with a higher buffer size. On older systems with less than 3GB memory you should reduce the buffer size. 
+
+**separatorchar** (optional) 
+This setting control what character is used to separate values in the input pts files. If you do not set this (recommended), the default behavior will be to look for any white space (spaces,tabs and so on) 
 
 ## Performance 
 
